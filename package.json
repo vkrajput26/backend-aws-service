@@ -21,10 +21,18 @@
   },
   "dependencies": {
     "@aws-cdk/aws-apigateway": "^1.204.0",
+    "@aws-cdk/aws-cognito": "^1.204.0",
     "@aws-cdk/aws-dynamodb": "^1.204.0",
+    "@aws-cdk/aws-iam": "^1.203.0",
     "@aws-cdk/aws-lambda": "^1.204.0",
+    "@aws-cdk/aws-rds": "^1.203.0",
     "@aws-cdk/aws-s3": "^1.204.0",
+    "@aws-cdk/aws-ses": "^1.203.0",
+    "@aws-cdk/aws-sns": "^1.203.0",
+    "@aws-cdk/aws-sns-subscriptions": "^1.203.0",
     "@aws-cdk/aws-sqs": "^1.204.0",
+    "@aws-sdk/client-dynamodb": "^3.670.0",
+    "@aws-sdk/lib-dynamodb": "^3.670.0",
     "aws-cdk-lib": "2.162.1",
     "constructs": "^10.0.0",
     "source-map-support": "^0.5.21"
