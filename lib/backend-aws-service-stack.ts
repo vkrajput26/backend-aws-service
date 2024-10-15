@@ -4,6 +4,8 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb'; 
 import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as iam from 'aws-cdk-lib/aws-iam'; 
+import path = require('path');
 
 export class BackendAwsServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -23,18 +25,24 @@ export class BackendAwsServiceStack extends cdk.Stack {
   //create the lambda function  
   const studentLambda = new lambda.Function(this, 'StudentLambda', {
    runtime:lambda.Runtime.NODEJS_20_X,
-   handler:'student.handler',
-   code:lambda.Code.fromAsset('lambda'),
+   handler:'index.handler',
+   code:lambda.Code.fromAsset(path.join(__dirname,'../lambda')),
    environment:{
     STUDENT_TABLE: studentTable.tableName,
     AUDIT_QUEUE_URL:auditQueue.queueUrl
    },
   });
 
+  // If you only want to allow PutItem specifically, you can define a more specific policy like this:
+  const dynamoPolicy = new iam.PolicyStatement({
+    actions: ['dynamodb:PutItem'],
+    resources: [studentTable.tableArn],
+  });
+  studentLambda.addToRolePolicy(dynamoPolicy);
   // Grant the Lambda function permission to interact with the DynamoDB table and SQS
   studentTable.grantReadWriteData(studentLambda);
   auditQueue.grantSendMessages(studentLambda);
- 
+  studentTable.grantWriteData(studentLambda);
       // Create API Gateway to trigger Lambda
       const api = new apigateway.RestApi(this, 'StudentApi', {
         restApiName: 'Student Service',
@@ -42,9 +50,10 @@ export class BackendAwsServiceStack extends cdk.Stack {
       });
   
       const student = api.root.addResource('student');
+      const studentId=student.addResource('{id}')
       student.addMethod('POST', new apigateway.LambdaIntegration(studentLambda)); // Create student
       student.addMethod('GET', new apigateway.LambdaIntegration(studentLambda)); // Get student by ID
       student.addMethod('PUT', new apigateway.LambdaIntegration(studentLambda)); // Update student
-      student.addMethod('DELETE', new apigateway.LambdaIntegration(studentLambda)); // Delete student
+      studentId.addMethod('DELETE', new apigateway.LambdaIntegration(studentLambda)); // Delete student
   }
 }
