@@ -1,95 +1,13 @@
-// const {DynamoDBClient, PutItemCommand} = require('@aws-sdk/client-dynamodb');
-
-// const STUDENT_TABLE = process.env.STUDENT_TABLE;
-// const AUDIT_QUEUE_URL = process.env.AUDIT_QUEUE_URL;
-
-// const client =new DynamoDBClient();
-
-// exports.handler = async function(event) {
-//     const httpMethod = event.httpMethod;
-//     // const studentId = event.pathParameters ? event.pathParameters.studentId : null;
-//     // const body = JSON.parse(event.body);
-
-//     switch (httpMethod) {
-//         case 'POST':
-//             return createStudent(event);
-//         case 'GET':
-//             return getStudent(studentId);
-//         case 'PUT':
-//             return updateStudent(studentId, body);
-//         case 'DELETE':
-//             return deleteStudent(studentId);
-//         default:
-//             return { statusCode: 400, body: 'Unsupported method' };
-//     }
-// };
-
-// // Create Student
-// // async function createStudent(student) {
-// //     const params = {
-// //         TableName: STUDENT_TABLE,
-// //         Item: student
-// //     };
-
-// //     await dynamodb.put(params).promise();
-// //     await sendAuditEvent('CREATE', student);
-
-// //     return { statusCode: 201, body: JSON.stringify(student) };
-// // }
-// async function createStudent(event) {
-
-//     // return {
-//     //     statusCode:200,
-//     //     body:JSON.stringify( {
-//     //         message:"create api"
-//     //     })
-//     // }
-//     const { studentId, name, age, className } = JSON.parse(event.body);
- 
-//   const params = {
-//     TableName: "StudentTable"||process.env.TABLE_NAME,
-//     Item: {
-//       studentId: { S: studentId },
-//       name: { S: name },
-//       age: { N: age.toString() },
-//       className: { S: className },
-//     },
-//   };
-
-//     try {
-        
-//         // Validate student object (optional)
-//         // if (!student || !student.id || !student.name) {
-//         //     return { statusCode: 400, body: JSON.stringify({ message: 'Invalid student data' }) };
-//         // }
-
-//         // Insert student record into DynamoDB
-//         await client.send(new PutItemCommand(params));
-
-//         // Send audit event for student creation
-//         // await sendAuditEvent('CREATE', student);
-
-//         // Return success response
-//         return { statusCode: 201, 
-//             body: JSON.stringify({ message: 'Student created successfully', 
-//                    }) };
-
-//     } catch (error) {
-//         console.error('Error creating student:', error);
-
-//         // Handle specific DynamoDB errors if needed
-//         return { statusCode: 500, body: JSON.stringify({ message: 'Failed to create student', error: error.message }) };
-//     }
-// }
 
 
 
 const { DynamoDBClient, PutItemCommand, GetItemCommand, DeleteItemCommand, UpdateItemCommand,ScanCommand  } = require('@aws-sdk/client-dynamodb');
-
+const { timeStamp } = require('console');
+const {SQSClient, SendMessageCommand} =require('@aws-sdk/client-sqs')
 const STUDENT_TABLE = process.env.STUDENT_TABLE;
-
+const AUDIT_QUEUE_URL = process.env.AUDIT_QUEUE_URL;
 const client = new DynamoDBClient();
-
+const sqsClient = new SQSClient();
 exports.handler = async function (event) {
     const httpMethod = event.httpMethod;
     const studentId = event.pathParameters ? event.pathParameters.id : null;
@@ -125,6 +43,8 @@ async function createStudent(student) {
 
     try {
         await client.send(new PutItemCommand(params));
+       //send audit event student creation
+       await sendAuditEvent('CREATE',{student,name,age,className});
         return { statusCode: 201, body: JSON.stringify({ message: 'Student created successfully' }) };
     } catch (error) {
         console.error('Error creating student:', error);
@@ -184,6 +104,8 @@ async function updateStudent(studentId, updates) {
 
     try {
         const result = await client.send(new UpdateItemCommand(params));
+      //send audit event for student update 
+      await sendAuditEvent('UPDATE',{studentId,name,age,className});
         const updatedStudent = {
             studentId: result.Attributes.studentId.S,
             name: result.Attributes.name.S,
@@ -209,9 +131,34 @@ async function deleteStudent(studentId) {
 
     try {
         await client.send(new DeleteItemCommand(params));
+        //send audit event for student deletion
+        await sendAuditEvent('DELETE',{studentId});
         return { statusCode: 200, body: JSON.stringify({ message: 'Student deleted successfully' }) };
     } catch (error) {
         console.error('Error deleting student:', error);
         return { statusCode: 500, body: JSON.stringify({ message: 'Failed to delete student', error: error.message }) };
     }
 }
+
+//function to send audit events to the SQS queue
+
+async function sendAuditEvent(action,studentData) {
+    const messageBody={
+        action,
+        timeStamp: new Date().toISOString,
+        studentData
+    };
+    const params={
+        QueueUrl:AUDIT_QUEUE_URL,
+        MessageBody:JSON.stringify(messageBody),
+    };
+
+    try{
+        await sqsClient.send(new SendMessageCommand(params));
+        console.log('Audit event sent', messageBody);
+    }
+    catch(error)
+    {
+        console.log('Error sending audit event to sqs', error)
+    }
+}   
