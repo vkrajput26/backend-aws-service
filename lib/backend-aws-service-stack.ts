@@ -30,6 +30,7 @@ export class BackendAwsServiceStack extends cdk.Stack {
    environment:{
     STUDENT_TABLE: studentTable.tableName,
     AUDIT_QUEUE_URL:auditQueue.queueUrl
+    
    },
   });
 
