@@ -155,7 +155,7 @@ async function sendAuditEvent(action,studentData) {
 
     try{
         await sqsClient.send(new SendMessageCommand(params));
-        console.log('Audit event sent', messageBody);
+        console.log('Audit event sent in the body', messageBody);
     }
     catch(error)
     {
