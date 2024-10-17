@@ -45,6 +45,7 @@ export class BackendAwsServiceStack extends cdk.Stack {
   auditQueue.grantSendMessages(studentLambda);
   studentTable.grantWriteData(studentLambda);
       // Create API Gateway to trigger Lambda
+       
       const api = new apigateway.RestApi(this, 'StudentApi', {
         restApiName: 'Student Service',
         description: 'This service handles student management.',
